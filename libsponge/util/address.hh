@@ -1,6 +1,7 @@
 #ifndef SPONGE_LIBSPONGE_ADDRESS_HH
 #define SPONGE_LIBSPONGE_ADDRESS_HH
 
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <netdb.h>
