@@ -1,6 +1,8 @@
 set (CMAKE_CXX_STANDARD 17)
 set (CMAKE_EXPORT_COMPILE_COMMANDS ON)
-set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17 -g -pedantic -pedantic-errors -Werror -Wall -Wextra -Wshadow -Wpointer-arith -Wcast-qual -Wformat=2 -Weffc++ -Wold-style-cast -Wno-unused-variable")
+set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17 -g -pedantic -pedantic-errors \
+                -Werror -Wall -Wextra -Wshadow -Wpointer-arith -Wcast-qual -Wformat=2 \
+                -Weffc++ -Wold-style-cast -Wno-unused-variable")
 
 # check for supported compiler versions
 set (IS_GNU_COMPILER ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU"))
@@ -11,7 +13,7 @@ if ((${IS_GNU_COMPILER} AND ${CXX_VERSION_LT_8}) OR (${IS_CLANG_COMPILER} AND ${
     message (FATAL_ERROR "You must compile this project with g++ >= 8 or clang >= 6.")
 endif ()
 if (${IS_CLANG_COMPILER})
-    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wloop-analysis")
+    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wloop-analysis -Wno-unqualified-std-cast-call -Wno-unknown-warning-option")
 endif ()
 
 # add some flags for the Release, Debug, and DebugSan modes
