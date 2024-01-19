@@ -3,17 +3,33 @@
 
 #include "byte_stream.hh"
 
+#include <algorithm>
+#include <cstddef>
 #include <cstdint>
+#include <memory>
 #include <string>
+#include <utility>
+#include <vector>
 
 //! \brief A class that assembles a series of excerpts from a byte stream (possibly out of order,
 //! possibly overlapping) into an in-order byte stream.
 class StreamReassembler {
   private:
-    // Your code here -- add private members as necessary.
+    struct datagram {
+        std::string data;
+        std::pair<uint64_t, uint64_t> range;
 
+        datagram(std::string data, std::pair<uint64_t, uint64_t> range) : data(std::move(data)), range(range) {}
+        datagram(const datagram &datagram) : data(datagram.data), range(datagram.range) {}
+    };
+
+    std::vector<std::shared_ptr<datagram>> _datagrams{};
     ByteStream _output;  //!< The reassembled in-order byte stream
     size_t _capacity;    //!< The maximum number of bytes
+    uint64_t _cap_start{};
+
+    bool range_overlap(const std::pair<uint64_t, uint64_t> &r1, const std::pair<uint64_t, uint64_t> &r2);
+    std::unique_ptr<datagram> merge_datagram(const datagram &r1, const datagram &r2);
 
   public:
     //! \brief Construct a `StreamReassembler` that will store up to `capacity` bytes.
