@@ -29,7 +29,7 @@ class StreamReassembler {
     uint64_t _cap_start{};
 
     bool range_overlap(const std::pair<uint64_t, uint64_t> &r1, const std::pair<uint64_t, uint64_t> &r2);
-    std::unique_ptr<datagram> merge_datagram(const datagram &r1, const datagram &r2);
+    std::unique_ptr<datagram> merge_datagram(const datagram &d1, const datagram &d2);
 
   public:
     //! \brief Construct a `StreamReassembler` that will store up to `capacity` bytes.
