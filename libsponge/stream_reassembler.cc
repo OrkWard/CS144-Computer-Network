@@ -13,14 +13,15 @@ StreamReassembler::StreamReassembler(const size_t capacity) : _output(capacity),
 
 bool StreamReassembler::range_overlap(const std::pair<uint64_t, uint64_t> &r1,
                                       const std::pair<uint64_t, uint64_t> &r2) {
-    return (r1.first <= r2.second && r2.second <= r1.second) || (r1.first <= r2.first && r2.first <= r1.second);
+    return !(r1.second < r2.first || r1.first > r2.second);
 }
 std::unique_ptr<StreamReassembler::datagram> StreamReassembler::merge_datagram(const datagram &d1, const datagram &d2) {
     const datagram &lower = d1.range.first <= d2.range.first ? d1 : d2;
     const datagram &larger = d1.range.second >= d2.range.second ? d1 : d2;
 
     auto data = lower.data;
-    data += larger.data.substr(lower.range.second - larger.range.first);
+    if (&lower != &larger)
+        data += larger.data.substr(lower.range.second - larger.range.first);
 
     return make_unique<datagram>(data, std::pair<uint64_t, uint64_t>(lower.range.first, larger.range.second));
 }
