@@ -3,9 +3,9 @@
 
 #include "byte_stream.hh"
 
-#include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <limits>
 #include <memory>
 #include <string>
 #include <utility>
@@ -26,7 +26,7 @@ class StreamReassembler {
     std::vector<std::shared_ptr<datagram>> _datagrams{};
     ByteStream _output;  //!< The reassembled in-order byte stream
     size_t _capacity;    //!< The maximum number of bytes
-    uint64_t _cap_start{};
+    size_t _eof{std::numeric_limits<size_t>::max()};
 
     bool range_overlap(const std::pair<uint64_t, uint64_t> &r1, const std::pair<uint64_t, uint64_t> &r2);
     std::unique_ptr<datagram> merge_datagram(const datagram &d1, const datagram &d2);

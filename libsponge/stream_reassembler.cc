@@ -1,7 +1,5 @@
 #include "stream_reassembler.hh"
 
-#include <memory>
-
 // Dummy implementation of a stream reassembler.
 
 // For Lab 1, please replace with a real implementation that passes the
@@ -31,16 +29,27 @@ std::unique_ptr<StreamReassembler::datagram> StreamReassembler::merge_datagram(c
 //! possibly out-of-order, from the logical stream, and assembles any newly
 //! contiguous substrings and writes them into the output stream in order.
 void StreamReassembler::push_substring(const string &data, const size_t index, const bool eof) {
+    // set eof position
+    if (eof) {
+        _eof = index + data.length();
+    }
+
+    // identify buffer start and end
+    auto buffer_start = _output.bytes_read();
+    auto buffer_end = buffer_start + _output.buffer_size();
+
     // range overflow, just ignore
-    if ((index + data.length()) > _capacity + _cap_start) {
+    if (index >= buffer_start + _capacity || index + data.length() <= buffer_end) {
+        if (_eof == buffer_start) {
+            _output.end_input();
+        }
         return;
     }
 
-    if (eof) {
-        _output.end_input();
-    }
-
-    auto new_datagram = std::make_unique<datagram>(data, std::pair<uint64_t, uint64_t>{index, index});
+    // new datagram, throw overflowed
+    auto trancated_data = data.substr(0, buffer_start + _capacity - index);
+    auto new_datagram = std::make_unique<datagram>(
+        trancated_data, std::pair<uint64_t, uint64_t>{index, index + trancated_data.length()});
 
     auto overlapped_datagrams = std::vector<std::shared_ptr<datagram>>{};
 
@@ -52,16 +61,25 @@ void StreamReassembler::push_substring(const string &data, const size_t index, c
     std::shared_ptr<datagram> merged_datagram = std::move(new_datagram);
     for (const auto &datagram : overlapped_datagrams) {
         merged_datagram = merge_datagram(*datagram, *merged_datagram);
-        static_cast<void>(std::remove(_datagrams.begin(), _datagrams.end(), datagram));
+        // remove merged datagram
+        for (auto iter = _datagrams.begin(); iter != _datagrams.end(); ++iter)
+            if (*iter == datagram) {
+                _datagrams.erase(iter);
+                break;
+            }
     }
 
-    if (index == _cap_start) {
-        _output.write(merged_datagram->data);
-        _cap_start += merged_datagram->data.length();
+    if (index <= buffer_end) {
+        _output.write(merged_datagram->data.substr(max(buffer_end - index, 0ul)));
+
+        // buffer end updated
+        if (_eof == buffer_start + _output.buffer_size()) {
+            _output.end_input();
+        }
         return;
     }
 
-    _datagrams.push_back(merged_datagram);
+    _datagrams.emplace_back(merged_datagram);
 }
 
 size_t StreamReassembler::unassembled_bytes() const {
