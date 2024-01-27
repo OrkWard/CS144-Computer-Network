@@ -1,7 +1,5 @@
 #include "tcp_receiver.hh"
 
-#include "wrapping_integers.hh"
-
 using namespace std;
 
 void TCPReceiver::segment_received(const TCPSegment &seg) {
@@ -9,6 +7,9 @@ void TCPReceiver::segment_received(const TCPSegment &seg) {
     if (seg.header().syn) {
         _syn_set = true;
         _isn = seg.header().seqno;
+        // When syn is set, the seqno begin with SYN, so need treat specially
+        _reassembler.push_substring(seg.payload().copy(), 0, seg.header().fin);
+        return;
     }
 
     // If syn is not set, just ignore whole segment
@@ -24,7 +25,10 @@ void TCPReceiver::segment_received(const TCPSegment &seg) {
 
 optional<WrappingInt32> TCPReceiver::ackno() const {
     uint64_t abs_seq = _reassembler.stream_out().bytes_read() + _reassembler.stream_out().buffer_size() + 1;
-    return _syn_set ? optional<WrappingInt32>(wrap(abs_seq, _isn)) : nullopt;
+    // When input ended, seqno need to take of FIN
+    return _syn_set ? _reassembler.stream_out().input_ended() ? optional(wrap(abs_seq + 1, _isn))
+                                                              : optional(wrap(abs_seq, _isn))
+                    : nullopt;
 }
 
 size_t TCPReceiver::window_size() const {

@@ -28,8 +28,6 @@ uint64_t unwrap(WrappingInt32 n, WrappingInt32 isn, uint64_t checkpoint) {
     // must be less than 2^32.
     uint64_t unwarp_n = (checkpoint & 0xFFFFFFFF00000000u) + static_cast<uint64_t>(wrap_abs_n);
 
-    cout << setbase(16) << unwarp_n << endl;
-
     if (unwarp_n > checkpoint && unwarp_n - checkpoint > 0x80000000u && unwarp_n > (1ul << 32))
         // too large
         return unwarp_n - (1ul << 32);
