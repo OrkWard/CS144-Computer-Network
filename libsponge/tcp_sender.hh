@@ -48,7 +48,7 @@ class TCPSender {
 
     //! receiver window
     uint64_t _ack_seqno{0};
-    uint16_t _window_size{1};
+    uint64_t _window_size{1};
 
     //! time and timer
     Timer _timer{TimerState::Stop, 0};

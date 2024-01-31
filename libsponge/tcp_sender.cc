@@ -20,35 +20,39 @@ TCPSender::TCPSender(const size_t capacity, const uint16_t retx_timeout, const s
 uint64_t TCPSender::bytes_in_flight() const { return _next_seqno - _ack_seqno; }
 
 void TCPSender::fill_window() {
-    size_t max_bytes_to_send =
-        max(min(static_cast<size_t>(_window_size + _ack_seqno - _next_seqno), TCPConfig::MAX_PAYLOAD_SIZE), 1ul);
-    TCPSegment new_segment{};
-    new_segment.header().seqno = WrappingInt32{wrap(_next_seqno, _isn)};
+    while (1) {
+        // new segment
+        TCPSegment new_segment{};
+        new_segment.header().seqno = WrappingInt32{wrap(_next_seqno, _isn)};
 
-    // first tcpsegment
-    if (_next_seqno == 0) {
-        new_segment.header().syn = true;
-    } else {
-        new_segment.payload() = Buffer{_stream.read(max_bytes_to_send)};
-    }
+        // When window size clains to be zero, treat as 1
+        size_t max_bytes_to_send = min(max(_window_size, 1ul) + _ack_seqno - _next_seqno, TCPConfig::MAX_PAYLOAD_SIZE);
+        if (_next_seqno == 0) {
+            // first segment
+            new_segment.header().syn = true;
+        } else {
+            new_segment.payload() = Buffer{_stream.read(max_bytes_to_send)};
+        }
 
-    // stream eof
-    if (_stream.eof())
-        new_segment.header().fin = true;
+        // stream eof
+        if (_stream.eof() && _next_seqno < _stream.bytes_written() + 2 &&
+            new_segment.length_in_sequence_space() + 1 <= max(_window_size, 1ul) + _ack_seqno - _next_seqno)
+            new_segment.header().fin = true;
 
-    // nothing to send, abort
-    if (new_segment.length_in_sequence_space() == 0)
-        return;
+        // nothing to send, abort
+        if (new_segment.length_in_sequence_space() == 0)
+            return;
 
-    _segments_out.push(new_segment);
-    _segments_outstanding.push_back(new_segment);
-    _next_seqno += new_segment.length_in_sequence_space();
+        _segments_out.push(new_segment);
+        _segments_outstanding.push_back(new_segment);
+        _next_seqno += new_segment.length_in_sequence_space();
 
-    // start timer if stopped
-    if (_timer.state == TimerState::Stop) {
-        _timer.state = TimerState::Running;
-        _timer.start_time = _time;
-    }
+        // start timer if stopped
+        if (_timer.state == TimerState::Stop) {
+            _timer.state = TimerState::Running;
+            _timer.start_time = _time;
+        }
+    };
 }
 
 //! \param ackno The remote receiver's ackno (acknowledgment number)
@@ -82,6 +86,9 @@ void TCPSender::ack_received(const WrappingInt32 ackno, const uint16_t window_si
 //! \param[in] ms_since_last_tick the number of milliseconds since the last call to this method
 void TCPSender::tick(const size_t ms_since_last_tick) {
     _time += ms_since_last_tick;
+
+    if (_segments_outstanding.empty())
+        return;
 
     // expired
     if (_timer.start_time + _rto <= _time) {
