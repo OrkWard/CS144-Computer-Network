@@ -1,9 +1,5 @@
 #include "wrapping_integers.hh"
 
-#include <cstdint>
-#include <iomanip>
-#include <iostream>
-
 using namespace std;
 
 //! Transform an "absolute" 64-bit sequence number (zero-indexed) into a WrappingInt32

@@ -6,6 +6,8 @@
 #include "tcp_segment.hh"
 #include "wrapping_integers.hh"
 
+#include <cstddef>
+#include <cstdint>
 #include <functional>
 #include <queue>
 
@@ -17,20 +19,39 @@
 //! segments if the retransmission timer expires.
 class TCPSender {
   private:
+    enum TimerState { Stop, Running };
+
+    struct Timer {
+        TimerState state;
+        uint64_t start_time;
+    };
+
     //! our initial sequence number, the number for our SYN.
     WrappingInt32 _isn;
 
     //! outbound queue of segments that the TCPSender wants sent
     std::queue<TCPSegment> _segments_out{};
 
+    //! outstanding segments
+    std::deque<TCPSegment> _segments_outstanding{};
+
     //! retransmission timer for the connection
     unsigned int _initial_retransmission_timeout;
+    uint32_t _rto;
+    uint32_t _retransmission_count{0};
 
     //! outgoing stream of bytes that have not yet been sent
     ByteStream _stream;
 
     //! the (absolute) sequence number for the next byte to be sent
     uint64_t _next_seqno{0};
+
+    //! the window size for bytes allowing to be sent
+    uint16_t _window_size{1};
+
+    //! time and timer
+    Timer _timer{TimerState::Stop, 0};
+    uint64_t _time{0};
 
   public:
     //! Initialize a TCPSender

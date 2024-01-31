@@ -1,7 +1,6 @@
 #ifndef SPONGE_LIBSPONGE_BYTE_STREAM_HH
 #define SPONGE_LIBSPONGE_BYTE_STREAM_HH
 
-#include <iostream>
 #include <string>
 
 //! \brief An in-order byte stream.
