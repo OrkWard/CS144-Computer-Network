@@ -46,7 +46,8 @@ class TCPSender {
     //! the (absolute) sequence number for the next byte to be sent
     uint64_t _next_seqno{0};
 
-    //! the window size for bytes allowing to be sent
+    //! receiver window
+    uint64_t _ack_seqno{0};
     uint16_t _window_size{1};
 
     //! time and timer
