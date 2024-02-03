@@ -6,6 +6,8 @@
 #include "tcp_sender.hh"
 #include "tcp_state.hh"
 
+#include <cstddef>
+
 //! \brief A complete endpoint of a TCP connection
 class TCPConnection {
   private:
@@ -20,6 +22,20 @@ class TCPConnection {
     //! for 10 * _cfg.rt_timeout milliseconds after both streams have ended,
     //! in case the remote TCPConnection doesn't know we've received its whole stream?
     bool _linger_after_streams_finish{true};
+
+    //! a wrapper of sender.fill_window, send a segment with payload as much as possible
+    void send_segment();
+
+    //! send empty segment with reset flag
+    void send_reset();
+
+    //! time
+    size_t _time{0};
+    //! time when received last segment
+    size_t _last_segment_received{0};
+
+    //! connection is active
+    bool _active{true};
 
   public:
     //! \name "Input" interface for the writer

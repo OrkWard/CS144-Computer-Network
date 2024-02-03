@@ -16,7 +16,7 @@ void TCPReceiver::segment_received(const TCPSegment &seg) {
     if (!_syn_set)
         return;
 
-    // Calculate index unwrap checkpooint
+    // Calculate index unwrap checkpoint
     uint64_t checkpoint = _reassembler.stream_out().bytes_read() + _reassembler.stream_out().buffer_size() + 1;
     // Calculate index where the segment start
     uint64_t stream_index = unwrap(seg.header().seqno, _isn, checkpoint) - 1;
