@@ -13,9 +13,6 @@ size_t TCPConnection::unassembled_bytes() const { return _receiver.unassembled_b
 size_t TCPConnection::time_since_last_segment_received() const { return _time - _last_segment_received; }
 
 void TCPConnection::segment_received(const TCPSegment &seg) {
-    // record time
-    _last_segment_received = _time;
-
     // reset received, end connection
     if (seg.header().rst) {
         _sender.stream_in().set_error();
@@ -23,34 +20,44 @@ void TCPConnection::segment_received(const TCPSegment &seg) {
         return;
     }
 
+    // no SYN received, ignore any segments coming
+    if (!seg.header().syn && !_receiver.ackno().has_value())
+        return;
+
+    // peer get eof first, no need to wait after stream finish
     if (seg.header().fin && !_sender.stream_in().eof())
         _linger_after_streams_finish = false;
 
     // give it to receiver
     _receiver.segment_received(seg);
+    // record time
+    _last_segment_received = _time;
 
     // give it to sender if ack set
-    if (seg.header().ack) {
+    if (seg.header().ack)
         _sender.ack_received(seg.header().ackno, seg.header().win);
-    }
 
-    // send segment if coming segment occupy at least one seqno
-    if (seg.length_in_sequence_space() > 0) {
-        _sender.fill_window();
-        // nothing been sent, send an empty segment
-        if (_sender.segments_out().empty())
-            _sender.send_empty_segment();
+    // just try to send some segments
+    _sender.fill_window();
 
-        push_segments_out();
+    // send empty segment if coming segment occupy at least one seqno
+    if (seg.length_in_sequence_space() > 0 && _sender.segments_out().empty()) {
+        _sender.send_empty_segment();
     }
+    push_segments_out();
 }
 
 bool TCPConnection::active() const {
     if (_sender.stream_in().error() || _receiver.stream_out().error())
         return false;
-    if (_linger_after_streams_finish)
-        return _time - _last_segment_received < 10 * _cfg.rt_timeout;
-    return _sender.bytes_in_flight() > 0 || !_sender.stream_in().eof();
+    // outbound ended
+    if (_sender.stream_in().eof() && _sender.bytes_in_flight() == 0) {
+        if (!_linger_after_streams_finish)
+            return false;
+        if (_receiver.stream_out().eof() && _time - _last_segment_received >= 10 * _cfg.rt_timeout)
+            return false;
+    }
+    return true;
 }
 
 size_t TCPConnection::write(const string &data) {
@@ -64,20 +71,15 @@ size_t TCPConnection::write(const string &data) {
 void TCPConnection::tick(const size_t ms_since_last_tick) {
     _time += ms_since_last_tick;
     _sender.tick(ms_since_last_tick);
-    push_segments_out();
-    // reset connection, if retransmition
-    if (_sender.consecutive_retransmissions() > _cfg.MAX_RETX_ATTEMPTS && _linger_after_streams_finish) {
-        // set both stream to error
+    if (_sender.consecutive_retransmissions() > _cfg.MAX_RETX_ATTEMPTS) {
         _sender.stream_in().set_error();
         _receiver.stream_out().set_error();
 
         send_reset();
+        return;
     }
 
-    // end connection, if time elapsed since last receive exceed limit
-    if (time_since_last_segment_received() >= 10 * _cfg.rt_timeout) {
-        send_reset();
-    }
+    push_segments_out();
 }
 
 void TCPConnection::end_input_stream() {
