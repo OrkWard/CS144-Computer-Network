@@ -1,9 +1,9 @@
 #include "tcp_sender.hh"
 
 #include "tcp_config.hh"
+#include "wrapping_integers.hh"
 
 #include <cstddef>
-#include <limits>
 #include <random>
 
 using namespace std;
@@ -25,7 +25,7 @@ void TCPSender::fill_window() {
         TCPSegment new_segment{};
         new_segment.header().seqno = WrappingInt32{wrap(_next_seqno, _isn)};
 
-        // When window size clains to be zero, treat as 1
+        // When window size claims to be zero, treat as 1
         size_t max_bytes_to_send = min(max(_window_size, 1ul) + _ack_seqno - _next_seqno, TCPConfig::MAX_PAYLOAD_SIZE);
         if (_next_seqno == 0) {
             // first segment
@@ -58,6 +58,10 @@ void TCPSender::fill_window() {
 //! \param ackno The remote receiver's ackno (acknowledgment number)
 //! \param window_size The remote receiver's advertised window size
 void TCPSender::ack_received(const WrappingInt32 ackno, const uint16_t window_size) {
+    // Impossible ackno
+    if (unwrap(ackno, _isn, _ack_seqno) > _ack_seqno + bytes_in_flight())
+        return;
+
     // update status
     _window_size = window_size;
     // if no new segment acknowledged
