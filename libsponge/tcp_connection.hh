@@ -23,19 +23,17 @@ class TCPConnection {
     //! in case the remote TCPConnection doesn't know we've received its whole stream?
     bool _linger_after_streams_finish{true};
 
-    //! a wrapper of sender.fill_window, send a segment with payload as much as possible
-    void send_segment();
-
-    //! send empty segment with reset flag
+    //! send empty segment with reset flag, then close connection
     void send_reset();
+
+    //! call this after any segments are pushed into sender's _segments_out
+    // [!may be time wasting]
+    void push_segments_out();
 
     //! time
     size_t _time{0};
     //! time when received last segment
     size_t _last_segment_received{0};
-
-    //! connection is active
-    bool _active{true};
 
   public:
     //! \name "Input" interface for the writer

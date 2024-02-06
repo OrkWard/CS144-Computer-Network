@@ -85,6 +85,10 @@ void TCPSender::ack_received(const WrappingInt32 ackno, const uint16_t window_si
             break;
         _segments_outstanding.pop_front();
     }
+
+    // stop timer if nothing left
+    if (_segments_outstanding.empty())
+        _timer.state = TimerState::Stop;
 }
 
 //! \param[in] ms_since_last_tick the number of milliseconds since the last call to this method
@@ -95,7 +99,7 @@ void TCPSender::tick(const size_t ms_since_last_tick) {
         return;
 
     // expired
-    if (_timer.start_time + _rto <= _time) {
+    if (_timer.state == TimerState::Running && _timer.start_time + _rto <= _time) {
         // resend earliest segment
         _segments_out.push(_segments_outstanding.front());
 
